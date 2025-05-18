@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>WebIDE ULTRA v2.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5/lib/codemirror.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5/theme/material.css">
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5/lib/codemirror.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5/mode/xml/xml.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5/mode/javascript/javascript.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5/mode/css/css.js"></script>
+
+  <!-- JSZip -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #1e1e1e;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #111;
+      padding: 1rem;
+      font-size: 1.3em;
+      text-align: center;
+      border-bottom: 1px solid #444;
+    }
+
+    .controls {
+      background: #222;
+      padding: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    button {
+      background: #007acc;
+      color: white;
+      border: none;
+      padding: 0.4rem 1rem;
+      cursor: pointer;
+    }
+
+    .editors {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .editor {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor h3 {
+      margin: 0;
+      background: #333;
+      padding: 0.5rem;
+      font-size: 0.9em;
+      text-align: center;
+    }
+
+    .CodeMirror {
+      flex: 1;
+      height: 100%;
+    }
+
+    .preview-console {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    iframe {
+      flex: 1;
+      border: none;
+      background: white;
+    }
+
+    .console {
+      background: black;
+      color: lime;
+      padding: 0.5rem;
+      height: 120px;
+      overflow-y: auto;
+      font-size: 0.85em;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+<header>💻 WebIDE ULTRA v2.0</header>
+
+<div class="controls">
+  <div>
+    <button onclick="runCode()">▶ Запустить</button>
+    <button onclick="clearConsole()">🧹 Очистить консоль</button>
+    <button onclick="downloadZip()">💾 Скачать ZIP</button>
+  </div>
+  <div>
+    <button onclick="resetCode()">🔄 Сброс</button>
+  </div>
+</div>
+
+<div class="editors">
+  <div class="editor">
+    <h3>HTML</h3>
+    <textarea id="htmlCode"></textarea>
+  </div>
+  <div class="editor">
+    <h3>CSS</h3>
+    <textarea id="cssCode"></textarea>
+  </div>
+  <div class="editor">
+    <h3>JS</h3>
+    <textarea id="jsCode"></textarea>
+  </div>
+</div>
+
+<div class="preview-console">
+  <iframe id="preview"></iframe>
+  <div class="console" id="console"></div>
+</div>
+
+<script>
+  const htmlEditor = CodeMirror.fromTextArea(document.getElementById("htmlCode"), {
+    mode: "xml",
+    theme: "material",
+    lineNumbers: true
+  });
+
+  const cssEditor = CodeMirror.fromTextArea(document.getElementById("cssCode"), {
+    mode: "css",
+    theme: "material",
+    lineNumbers: true
+  });
+
+  const jsEditor = CodeMirror.fromTextArea(document.getElementById("jsCode"), {
+    mode: "javascript",
+    theme: "material",
+    lineNumbers: true
+  });
+
+  const defaultCode = {
+    html: "<h1>Привет, мир!</h1>",
+    css: "h1 { color: deeppink; text-align: center; }",
+    js: "console.log('🚀 Добро пожаловать в WebIDE ULTRA');"
+  };
+
+  function runCode() {
+    const html = htmlEditor.getValue();
+    const css = cssEditor.getValue();
+    const js = jsEditor.getValue();
+
+    const output = `
+      <html>
+      <head>
+        <style>${css}</style>
+      </head>
+      <body>
+        ${html}
+        <script>
+          const log = console.log;
+          console.log = function(msg) {
+            parent.document.getElementById('console').innerHTML += msg + '\\n';
+            log.apply(console, arguments);
+          };
+          try {
+            ${js}
+          } catch(e) {
+            console.log('❌ Ошибка: ' + e.message);
+          }
+        <\/script>
+      </body>
+      </html>
+    `;
+
+    document.getElementById("preview").srcdoc = output;
+    saveToLocalStorage();
+  }
+
+  function clearConsole() {
+    document.getElementById("console").textContent = '';
+  }
+
+  function resetCode() {
+    htmlEditor.setValue(defaultCode.html);
+    cssEditor.setValue(defaultCode.css);
+    jsEditor.setValue(defaultCode.js);
+    runCode();
+  }
+
+  function saveToLocalStorage() {
+    localStorage.setItem("webide-html", htmlEditor.getValue());
+    localStorage.setItem("webide-css", cssEditor.getValue());
+    localStorage.setItem("webide-js", jsEditor.getValue());
+  }
+
+  function loadFromLocalStorage() {
+    htmlEditor.setValue(localStorage.getItem("webide-html") || defaultCode.html);
+    cssEditor.setValue(localStorage.getItem("webide-css") || defaultCode.css);
+    jsEditor.setValue(localStorage.getItem("webide-js") || defaultCode.js);
+  }
+
+  function downloadZip() {
+    const zip = new JSZip();
+    zip.file("index.html", generateFullHTML());
+    zip.generateAsync({ type: "blob" }).then((blob) => {
+      saveAs(blob, "webide_project.zip");
+    });
+  }
+
+  function generateFullHTML() {
+    return `
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>WebIDE Export</title>
+  <style>
+  ${cssEditor.getValue()}
+  </style>
+</head>
+<body>
+  ${htmlEditor.getValue()}
+  <script>
+  ${jsEditor.getValue()}
+  <\/script>
+</body>
+</html>`;
+  }
+
+  htmlEditor.on("change", runCode);
+  cssEditor.on("change", runCode);
+  jsEditor.on("change", runCode);
+
+  loadFromLocalStorage();
+  runCode();
+</script>
+
+</body>
+</html>
